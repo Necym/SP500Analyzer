@@ -13,7 +13,7 @@ st.sidebar.title("Prediction Parameters")
 
 # Historical lookback period (for training samples)
 lookback_days = st.sidebar.number_input("Lookback Days (for historical data)", min_value=1, max_value=365, value=7, step=1)
-# Note: For 1m data, a shorter lookback period (e.g. 7 days) is often more reliable.
+# Note: For 1-minute data, a shorter lookback period (e.g. 7 days) is often more reliable.
 
 # Prediction window length (in minutes)
 prediction_window_minutes = st.sidebar.number_input("Prediction Window (Minutes)", min_value=1, max_value=1440, value=60, step=1)
@@ -57,11 +57,11 @@ This tool leverages historical intraday data to find patterns similar to a selec
 Configure your settings on the sidebar and click **Run Analysis** to fetch the data and perform the analysis.
 """)
 
-# Proceed only when the user clicks the "Run Analysis" button.
+# Only proceed when Run Analysis is clicked.
 if run_analysis:
-    # =============================
+    # -----------------------------
     # Function: Download Data (Cached)
-    # =============================
+    # -----------------------------
     @st.cache_data
     def get_data(ticker, period, interval):
         data = yf.download(ticker, period=period, interval=interval)
@@ -79,14 +79,13 @@ if run_analysis:
     st.write("**Data Sample:**")
     st.dataframe(data.head())
 
-    # =============================
+    # -----------------------------
     # Extract the "Current" Window Data
-    # =============================
+    # -----------------------------
     if use_custom_window:
         # Use the custom window specified by the user.
-        # First, check if the data index is timezone-aware.
+        # Check if the data's index is timezone-aware and localize if needed.
         tz_info = data.index.tz
-        # If the data index is timezone-aware, localize the custom timestamps.
         if tz_info is not None:
             custom_start_dt = custom_start_dt.tz_localize(tz_info)
             custom_end_dt = custom_end_dt.tz_localize(tz_info)
@@ -99,10 +98,10 @@ if run_analysis:
         # Otherwise, use the most recent computed_window_minutes of data
         current_window = prices.iloc[-computed_window_minutes:]
     
-    # =============================
+    # -----------------------------
     # Build Historical Samples
-    # =============================
-    # We'll create samples where each sample uses a "historical window" of length computed_window_minutes.
+    # -----------------------------
+    # Each sample uses a "historical window" of length computed_window_minutes.
     # The outcome is the percentage change from the end of that window to prediction_window_minutes later.
     historical_window_minutes = computed_window_minutes
     samples = []
@@ -137,9 +136,9 @@ if run_analysis:
     st.write("**Historical Samples (Feature Engineering):**")
     st.dataframe(df_samples.head())
 
-    # =============================
+    # -----------------------------
     # Build the Nearest Neighbors Model
-    # =============================
+    # -----------------------------
     features_cols = ["feature_pct_change", "feature_volatility", "feature_slope"]
     X = df_samples[features_cols].values
     y = df_samples["outcome"].values
@@ -150,14 +149,14 @@ if run_analysis:
     nn_model = NearestNeighbors(n_neighbors=k_neighbors)
     nn_model.fit(X_scaled)
 
-    # =============================
+    # -----------------------------
     # Compute Features for the Current Window
-    # =============================
+    # -----------------------------
     current_window_prices = current_window
     if len(current_window_prices) < 2:
         st.error("Not enough data in the current window to compute features.")
         st.stop()
-    
+
     start_price_today = current_window_prices.iloc[0]
     end_price_today = current_window_prices.iloc[-1]
     feature_pct_change_today = (end_price_today - start_price_today) / start_price_today * 100
@@ -166,16 +165,23 @@ if run_analysis:
     x_today = np.arange(len(current_window_prices))
     slope_today = np.polyfit(x_today, current_window_prices.values, 1)[0]
     feature_slope_today = slope_today / start_price_today * 100
-    
-    # Explicitly cast values to float before formatting
+
+    # Explicitly cast to float if needed
+    current_features = np.array([
+        float(feature_pct_change_today),
+        float(feature_volatility_today),
+        float(feature_slope_today)
+    ]).reshape(1, -1)
+    current_features_scaled = scaler.transform(current_features)
+
     st.subheader("Current Window Features")
     st.write(f"**Percentage Change:** {float(feature_pct_change_today):.2f}%")
     st.write(f"**Volatility:** {float(feature_volatility_today):.4f}%")
     st.write(f"**Slope:** {float(feature_slope_today):.4f}%")
 
-    # =============================
+    # -----------------------------
     # Find Nearest Neighbors & Analyze Outcomes
-    # =============================
+    # -----------------------------
     distances, indices = nn_model.kneighbors(current_features_scaled)
     neighbors_outcomes = y[indices[0]]
 
@@ -193,9 +199,9 @@ if run_analysis:
     st.write(f"**Minimum:** {min_outcome:.2f}%")
     st.write(f"**Maximum:** {max_outcome:.2f}%")
 
-    # =============================
+    # -----------------------------
     # Visualization
-    # =============================
+    # -----------------------------
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.hist(neighbors_outcomes, bins=10, color="skyblue", edgecolor="black")
     ax.axvline(q25, color="red", linestyle="dashed", linewidth=1, label="25th Percentile")
