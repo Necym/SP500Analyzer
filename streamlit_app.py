@@ -157,7 +157,7 @@ if run_analysis:
     if len(current_window_prices) < 2:
         st.error("Not enough data in the current window to compute features.")
         st.stop()
-
+    
     start_price_today = current_window_prices.iloc[0]
     end_price_today = current_window_prices.iloc[-1]
     feature_pct_change_today = (end_price_today - start_price_today) / start_price_today * 100
@@ -166,14 +166,12 @@ if run_analysis:
     x_today = np.arange(len(current_window_prices))
     slope_today = np.polyfit(x_today, current_window_prices.values, 1)[0]
     feature_slope_today = slope_today / start_price_today * 100
-
-    current_features = np.array([feature_pct_change_today, feature_volatility_today, feature_slope_today]).reshape(1, -1)
-    current_features_scaled = scaler.transform(current_features)
-
+    
+    # Explicitly cast values to float before formatting
     st.subheader("Current Window Features")
-    st.write(f"**Percentage Change:** {feature_pct_change_today:.2f}%")
-    st.write(f"**Volatility:** {feature_volatility_today:.4f}%")
-    st.write(f"**Slope:** {feature_slope_today:.4f}%")
+    st.write(f"**Percentage Change:** {float(feature_pct_change_today):.2f}%")
+    st.write(f"**Volatility:** {float(feature_volatility_today):.4f}%")
+    st.write(f"**Slope:** {float(feature_slope_today):.4f}%")
 
     # =============================
     # Find Nearest Neighbors & Analyze Outcomes
