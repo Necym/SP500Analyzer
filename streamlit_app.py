@@ -182,8 +182,10 @@ if run_analysis:
     # -----------------------------
     # Find Nearest Neighbors & Analyze Outcomes
     # -----------------------------
+
     distances, indices = nn_model.kneighbors(current_features_scaled)
-    neighbors_outcomes = y[indices[0]]
+    # Ensure neighbors_outcomes is a numpy array
+    neighbors_outcomes = np.array(y[indices[0]])
 
     q25 = np.percentile(neighbors_outcomes, 25)
     median_outcome = np.median(neighbors_outcomes)
