@@ -83,7 +83,14 @@ if run_analysis:
     # Extract the "Current" Window Data
     # =============================
     if use_custom_window:
-        # Use the custom window specified by the user
+        # Use the custom window specified by the user.
+        # First, check if the data index is timezone-aware.
+        tz_info = data.index.tz
+        # If the data index is timezone-aware, localize the custom timestamps.
+        if tz_info is not None:
+            custom_start_dt = custom_start_dt.tz_localize(tz_info)
+            custom_end_dt = custom_end_dt.tz_localize(tz_info)
+        
         current_window = data.loc[custom_start_dt:custom_end_dt]["Close"]
         if current_window.empty:
             st.error("No data available for the specified custom window. Please adjust the date/time inputs to a trading day/time.")
